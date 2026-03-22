@@ -1,5 +1,10 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, type Auth } from 'firebase/auth'
+import {
+  browserLocalPersistence,
+  getAuth,
+  setPersistence,
+  type Auth,
+} from 'firebase/auth'
 import { getDatabase, type Database } from 'firebase/database'
 
 const rawConfig = {
@@ -37,7 +42,12 @@ if (missingRequired.length > 0) {
 } else {
   try {
     const app = initializeApp(firebaseConfig)
-    auth = getAuth(app)
+    const authInstance = getAuth(app)
+
+    // Persist login across browser sessions and mobile app restarts
+    void setPersistence(authInstance, browserLocalPersistence)
+
+    auth = authInstance
     db = getDatabase(app, firebaseConfig.databaseURL)
   } catch (error) {
     firebaseInitError =
@@ -46,4 +56,3 @@ if (missingRequired.length > 0) {
         : 'Unable to initialize Firebase. Check your .env configuration.'
   }
 }
-
