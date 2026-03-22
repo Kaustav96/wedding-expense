@@ -71,6 +71,27 @@ Before deploying:
 2. Set the correct `VITE_BASE_PATH` in `.env` to match your repo (example: `/wedding-expense/`).
 3. Ensure the repository is not private (or confirm your plan supports private Pages hosting).
 
+### Option A: GitHub Actions (recommended)
+
+This repo includes `.github/workflows/deploy-gh-pages.yml`.
+
+1. In GitHub, open your repo -> **Settings** -> **Secrets and variables** -> **Actions**.
+2. Add these **Repository secrets**:
+   - `VITE_FIREBASE_API_KEY`
+   - `VITE_FIREBASE_AUTH_DOMAIN`
+   - `VITE_FIREBASE_DATABASE_URL`
+   - `VITE_FIREBASE_PROJECT_ID`
+   - `VITE_FIREBASE_STORAGE_BUCKET`
+   - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+   - `VITE_FIREBASE_APP_ID`
+   - `VITE_BASE_PATH` (example: `/wedding-expense/`)
+3. Push to `main` (or run workflow manually from **Actions** tab).
+4. GitHub Action builds with those env vars and publishes to `gh-pages`.
+
+Then in GitHub repo settings: **Pages** -> Source: `Deploy from a branch`, Branch: `gh-pages`.
+
+### Option B: Local deploy command
+
 Deploy command:
 
 ```bash
