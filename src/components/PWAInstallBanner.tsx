@@ -1,52 +1,69 @@
 import { useEffect, useState } from 'react'
 
 interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[]
-  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
   prompt(): Promise<void>
+  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+// ─── Capture the event IMMEDIATELY at module load ───────────────────────────
+// beforeinstallprompt fires early — before React even mounts.
+// We grab it here at the top level so we never miss it.
+let _deferredPrompt: BeforeInstallPromptEvent | null = null
+let _listeners: Array<() => void> = []
+
+const notifyListeners = () => _listeners.forEach(fn => fn())
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault()
+  _deferredPrompt = e as BeforeInstallPromptEvent
+  notifyListeners()
+})
+
+window.addEventListener('appinstalled', () => {
+  _deferredPrompt = null
+  notifyListeners()
+})
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function PWAInstallBanner() {
-  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
+  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(_deferredPrompt)
   const [isIOS, setIsIOS] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
-  const [isInstalled, setIsInstalled] = useState(false)
+  const [dismissed, setDismissed] = useState(
+    () => !!sessionStorage.getItem('pwa-banner-dismissed')
+  )
+  const [isInstalled, setIsInstalled] = useState(
+    () => window.matchMedia('(display-mode: standalone)').matches
+  )
 
   useEffect(() => {
-    // Check if already installed (running in standalone mode)
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true)
-      return
+    // Subscribe to future prompt events (e.g. re-triggered after dismiss)
+    const sync = () => {
+      setInstallEvent(_deferredPrompt)
+      if (!_deferredPrompt) setIsInstalled(true)
     }
+    _listeners.push(sync)
 
-    // Check if user already dismissed this session
-    if (sessionStorage.getItem('pwa-banner-dismissed')) {
-      setDismissed(true)
-      return
-    }
-
-    // Detect iOS (Safari doesn't fire beforeinstallprompt)
-    const isIOSDevice = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream
+    // Detect iOS Safari (no beforeinstallprompt support)
+    const ua = navigator.userAgent
+    const isIOSDevice =
+      /iphone|ipad|ipod/i.test(ua) &&
+      !(window as unknown as Record<string, unknown>)['MSStream'] &&
+      !window.matchMedia('(display-mode: standalone)').matches
     setIsIOS(isIOSDevice)
 
-    // Chrome / Android — capture the install prompt
-    const handler = (e: Event) => {
-      e.preventDefault()
-      setInstallEvent(e as BeforeInstallPromptEvent)
+    return () => {
+      _listeners = _listeners.filter(fn => fn !== sync)
     }
-    window.addEventListener('beforeinstallprompt', handler)
-
-    // Hide banner if installed after prompt
-    window.addEventListener('appinstalled', () => setIsInstalled(true))
-
-    return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
   const handleInstall = async () => {
     if (!installEvent) return
     await installEvent.prompt()
     const { outcome } = await installEvent.userChoice
-    if (outcome === 'accepted') setIsInstalled(true)
+    if (outcome === 'accepted') {
+      setIsInstalled(true)
+      _deferredPrompt = null
+    }
     setInstallEvent(null)
   }
 
@@ -55,12 +72,11 @@ export function PWAInstallBanner() {
     sessionStorage.setItem('pwa-banner-dismissed', '1')
   }
 
-  // Don't show if: installed, dismissed, or no trigger available
   if (isInstalled || dismissed) return null
   if (!installEvent && !isIOS) return null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-3 safe-area-inset-bottom">
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-3">
       <div className="mx-auto max-w-md rounded-2xl border border-purple-500/30 bg-gradient-to-r from-[#1a0533] to-[#2a0a1a] shadow-2xl shadow-purple-900/50 backdrop-blur-md">
         <div className="flex items-center gap-3 p-4">
           {/* App Icon */}
@@ -69,15 +85,15 @@ export function PWAInstallBanner() {
           </div>
 
           {/* Text */}
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-white">Install BandBajaBudget</p>
             {isIOS ? (
-              <p className="text-xs text-purple-300 leading-tight mt-0.5">
+              <p className="mt-0.5 text-xs leading-tight text-purple-300">
                 Tap <span className="font-semibold">Share</span> →{' '}
                 <span className="font-semibold">Add to Home Screen</span>
               </p>
             ) : (
-              <p className="text-xs text-purple-300 leading-tight mt-0.5">
+              <p className="mt-0.5 text-xs leading-tight text-purple-300">
                 Add to your home screen — works offline too
               </p>
             )}
@@ -103,7 +119,7 @@ export function PWAInstallBanner() {
           </div>
         </div>
 
-        {/* iOS instruction bar */}
+        {/* iOS step-by-step bar */}
         {isIOS && (
           <div className="border-t border-purple-500/20 px-4 pb-3 pt-2">
             <div className="flex items-center justify-center gap-4 text-xs text-purple-400">
@@ -121,4 +137,3 @@ export function PWAInstallBanner() {
     </div>
   )
 }
-
