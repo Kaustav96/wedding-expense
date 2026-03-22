@@ -1,6 +1,7 @@
 import { useAuth } from './context/useAuth'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
+import { PWAInstallBanner } from './components/PWAInstallBanner'
 
 function App() {
   const { user, loading } = useAuth()
@@ -14,10 +15,20 @@ function App() {
   }
 
   if (!user) {
-    return <LoginPage />
+    return (
+      <>
+        <LoginPage />
+        <PWAInstallBanner />
+      </>
+    )
   }
 
-  return <DashboardPage />
+  return (
+    <>
+      <DashboardPage />
+      <PWAInstallBanner />
+    </>
+  )
 }
 
 export default App
