@@ -2,26 +2,26 @@
   "rules": {
     "users": {
       "$uid": {
-        ".read": "auth.uid === $uid || root.child('bandBajaBudget/system/isAdmin').child(auth.uid).val() === true",
-        ".write": "auth.uid === $uid"
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
       }
     },
     "bandBajaBudget": {
-      "system": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      },
       "expenses": {
         "$side": {
-          ".read": "auth != null",
-          ".write": "auth != null"
+          ".read": "auth != null && root.child('users').child(auth.uid).child('side').val() === $side",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('side').val() === $side"
         }
       },
       "sideBudgets": {
         "$side": {
-          ".read": "auth != null",
-          ".write": "auth != null"
+          ".read": "auth != null && root.child('users').child(auth.uid).child('side').val() === $side",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('side').val() === $side"
         }
+      },
+      "system": {
+        ".read": false,
+        ".write": false
       },
       "defaultMemberCredentials": {
         ".read": false,
@@ -30,4 +30,3 @@
     }
   }
 }
-
